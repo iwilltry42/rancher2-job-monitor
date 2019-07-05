@@ -43,7 +43,7 @@ def fetch_job_views():
             else:
                 prev_execution = None
 
-            job_view = get_job_view(job['execution'], prev_execution, app.config['KUBERNETES_DASHBOARD_URL'])
+            job_view = get_job_view(job['execution'], prev_execution, app.config['RANCHER_URL'])
             job_views.append(job_view)
 
     result = {

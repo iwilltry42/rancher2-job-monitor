@@ -28,6 +28,18 @@ def get_jobs(namespace=None, selector=None):
 
     data = kubectl(command, 'json', False)
 
+    # preparing the map of namespaces to Rancher's cluster:project-id
+    namespace_command = ['get', 'namespaces']
+    namespace_data = kubectl(namespace_command, 'json', False)
+    namespace_project_map = {}
+    if namespace_data and ('items' in namespace_data):
+        for namespace in namespace_data['items']:
+            try:
+                namespace_project_map[namespace['metadata']['name']] = namespace['metadata']['annotations']['field.cattle.io/projectId']
+            except KeyError:
+                namespace_project_map[namespace['metadata']['name']] = None
+                continue
+
     if data and 'items' in data:
         for item in data['items']:
             job_name = None
@@ -50,6 +62,8 @@ def get_jobs(namespace=None, selector=None):
             job_namespace = item['metadata']['namespace']
             if job_namespace not in jobs:
                 jobs[job_namespace] = {}
+
+            rancher_project = namespace_project_map[job_namespace]
 
             if job_name not in jobs[job_namespace]:
                 jobs[job_namespace][job_name] = {}
@@ -84,6 +98,7 @@ def get_jobs(namespace=None, selector=None):
                 'id': job_name,
                 'job_name': '{} / {}'.format(job_namespace, job_name),
                 'job_namespace': job_namespace,
+                'rancher_project': rancher_project,
                 'start_timestamp': start_timestamp,
                 'status': status,
                 'active': active
@@ -94,12 +109,12 @@ def get_jobs(namespace=None, selector=None):
     return jobs
 
 
-def get_job_view(execution, prev_execution, kubernetes_dashboard_url):
+def get_job_view(execution, prev_execution, rancher_server_url):
     """
     Gets a job view from the specified execution and previous execution
     :param execution: dict
     :param prev_execution: dict
-    :param kubernetes_dashboard_url: string
+    :param rancher_server_url: string
     :return: dict
     """
 
@@ -130,10 +145,13 @@ def get_job_view(execution, prev_execution, kubernetes_dashboard_url):
 
         estimated_duration = '{}s'.format(prev_elapsed_seconds)
 
-        prev_url = '{}/#!/cronjob/{}/{}?namespace={}'.format(kubernetes_dashboard_url,
-                                                             prev_execution['job_namespace'],
-                                                             prev_execution['id'],
-                                                             prev_execution['job_namespace'])
+        try:
+            rancher_path = prev_execution['rancher_project']
+            job_namespace = prev_execution['job_namespace']
+            job_id = prev_execution['id']
+            prev_url = f"{rancher_server_url}/p/{rancher_path}/workload/cronjob:{job_namespace}:{job_id}"
+        except KeyError:
+            prev_url = f"{rancher_server_url}"
     else:
         prev_build_name = ''
         prev_url = ''
@@ -166,10 +184,13 @@ def get_job_view(execution, prev_execution, kubernetes_dashboard_url):
     else:
         status = 'unknown'
 
-    url = '{}/#!/cronjob/{}/{}?namespace={}'.format(kubernetes_dashboard_url,
-                                                    execution['job_namespace'],
-                                                    execution['id'],
-                                                    execution['job_namespace'])
+    try:
+        rancher_path = execution['rancher_project']
+        job_namespace = execution['job_namespace']
+        job_id = execution['id']
+        url = f"{rancher_server_url}/p/{rancher_path}/workload/cronjob:{job_namespace}:{job_id}"
+    except KeyError:
+        url = f"{rancher_server_url}"
 
     job_view = {
         'name': execution['job_name'],

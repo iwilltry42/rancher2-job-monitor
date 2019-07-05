@@ -3,7 +3,7 @@ import os
 
 class Configuration(object):
 
-    if 'KUBERNETES_DASHBOARD_URL' in os.environ:
-        KUBERNETES_DASHBOARD_URL = os.environ['KUBERNETES_DASHBOARD_URL']
+    if 'RANCHER_URL' in os.environ:
+        RANCHER_URL = os.environ['RANCHER_URL']
     else:
-        KUBERNETES_DASHBOARD_URL = 'http://my-kubernetes-cluster.local'
+        RANCHER_URL = 'http://rancher-ui.local'
